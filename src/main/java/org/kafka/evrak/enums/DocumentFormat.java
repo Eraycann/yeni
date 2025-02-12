@@ -6,7 +6,7 @@ import lombok.Getter;
  * DocumentFormat, desteklenen doküman dosya formatlarını belirtir.
  */
 @Getter
-public enum DocumentFlow {
+public enum DocumentFormat {
 
     PDF(".pdf"),
     DOC(".doc"),

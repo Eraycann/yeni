@@ -3,6 +3,7 @@ package org.kafka.evrak.service;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import org.kafka.evrak.config.FileStorageConfig;
 import org.kafka.evrak.dto.request.DtoCompanyIU;
 import org.kafka.evrak.dto.response.DtoCompany;
 import org.kafka.evrak.entity.Company;
@@ -26,16 +27,20 @@ public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
+    private final FileStorageConfig fileStorageConfig; // Yeni eklenen konfigürasyon
 
-    // Base directory for company folders
-    private static final Path UPLOADS_DIR = Paths.get("uploads");
+    // Base directory for company folders (Artık application.properties'tan alınıyor)
+    private Path getUploadsDir() {
+        return fileStorageConfig.getUploadsPath();
+    }
+
 
     /**
      * Yardımcı metod: Belirtilen firma adına göre klasör oluşturur.
      */
     private String createCompanyFolder(String companyName) {
         try {
-            Path companyFolder = UPLOADS_DIR.resolve(companyName);
+            Path companyFolder = getUploadsDir().resolve(companyName);
             Files.createDirectories(companyFolder);
             return companyFolder.toString();
         } catch (IOException e) {
@@ -223,7 +228,7 @@ public class CompanyService {
      * Bu metot, sadece isActive = true olan kayıtları çeker.
      */
     @Transactional(readOnly = true)
-    public List<DtoCompany> getActiveCompanies() {
+    public List<DtoCompany> getAllActiveCompanies() {
         List<Company> companies = companyRepository.findByIsActive(true);
         return companies.stream()
                 .map(companyMapper::toDto)
@@ -235,7 +240,7 @@ public class CompanyService {
      * Bu metot, sadece isActive = false olan kayıtları çeker.
      */
     @Transactional(readOnly = true)
-    public List<DtoCompany> getInactiveCompanies() {
+    public List<DtoCompany> getAllInactiveCompanies() {
         List<Company> companies = companyRepository.findByIsActive(false);
         return companies.stream()
                 .map(companyMapper::toDto)

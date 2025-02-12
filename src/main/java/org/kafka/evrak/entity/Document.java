@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.kafka.evrak.enums.DocumentCategory;
-import org.kafka.evrak.enums.DocumentFlow;
+import org.kafka.evrak.enums.DocumentFormat;
 
 
 @Entity
@@ -22,7 +22,7 @@ public class Document extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", length = 20)
-    private DocumentFlow type;
+    private DocumentFormat type;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "category", length = 5)
