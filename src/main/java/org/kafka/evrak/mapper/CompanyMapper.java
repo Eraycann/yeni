@@ -9,14 +9,12 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface CompanyMapper {
 
-    // DTO'dan Entity'ye dönüşüm (Create & Update senaryoları için)
-    @Mapping(target = "id", ignore = true)         // Create sırasında id otomatik oluşturulur
-    @Mapping(target = "createdAt", ignore = true)  // Auditing mekanizması tarafından doldurulur
-    @Mapping(target = "updatedAt", ignore = true)  // Auditing mekanizması tarafından doldurulur
-    @Mapping(target = "isActive", ignore = true)   // Varsayılan değer entity'de tanımlı
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "active", ignore = true) // BaseEntity'deki isActive field'ı için
     @Mapping(target = "folderPath", ignore = true)
     Company toEntity(DtoCompanyIU dto);
 
-    // Entity'den DTO'ya dönüşüm (Response için)
     DtoCompany toDto(Company company);
 }

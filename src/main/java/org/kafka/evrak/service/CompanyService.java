@@ -73,6 +73,7 @@ public class CompanyService {
      * Aynı isimde aktif ya da pasif firma varsa hata fırlatılır.
      * Kayıt sonrası "uploads" klasörü altında firma adına göre alt klasör oluşturulur.
      */
+
     @Transactional
     public DtoCompany saveCompany(DtoCompanyIU dto) {
         String companyName = dto.getName();
@@ -159,7 +160,7 @@ public class CompanyService {
      * - Klasör adının önüne "archived_" eklenir.
      */
     @Transactional
-    public void deleteCompany(Long companyId) {
+    public Long deactivateCompany(Long companyId) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new BaseException(new ErrorMessage(
                         MessageType.NO_RECORD_EXIST, "Company not found.")));
@@ -179,7 +180,8 @@ public class CompanyService {
                 company.setFolderPath(newFolderPath);
             }
             company.setActive(false);
-            companyRepository.save(company);
+            Company savedCompany = companyRepository.save(company);
+            return savedCompany.getId();
         } catch (BaseException e) {
             throw new BaseException(new ErrorMessage(
                     MessageType.FOLDER_RENAME_FAILED,
@@ -193,7 +195,7 @@ public class CompanyService {
      * - Klasör adının önündeki "archived_" kaldırılır.
      */
     @Transactional
-    public DtoCompany restoreCompany(Long companyId) {
+    public Long activateCompany(Long companyId) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new BaseException(new ErrorMessage(
                         MessageType.NO_RECORD_EXIST, "Company not found.")));
@@ -214,7 +216,7 @@ public class CompanyService {
             }
             company.setActive(true);
             Company restoredCompany = companyRepository.save(company);
-            return companyMapper.toDto(restoredCompany);
+            return restoredCompany.getId();
         } catch (BaseException e) {
             throw new BaseException(new ErrorMessage(
                     MessageType.FOLDER_RENAME_FAILED,
