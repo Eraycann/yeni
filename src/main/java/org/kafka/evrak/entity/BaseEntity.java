@@ -19,8 +19,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-@FilterDef(name = "activeFilter", parameters = @ParamDef(name = "isActive", type = Boolean.class))
-@Filter(name = "activeFilter", condition = "is_active = :isActive")
 public abstract class BaseEntity {
 
     @Id

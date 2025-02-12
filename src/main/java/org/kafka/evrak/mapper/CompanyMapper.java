@@ -5,16 +5,16 @@ import org.kafka.evrak.dto.response.DtoCompany;
 import org.kafka.evrak.entity.Company;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 @Mapper(componentModel = "spring")
 public interface CompanyMapper {
 
-    // DTO'dan Entity'ye dönüşüm (Create & Update için)
-    @Mapping(target = "id", ignore = true) // ID create sırasında set edilmez
-    @Mapping(target = "createdAt", ignore = true) // Otomatik oluşturulur
-    @Mapping(target = "updatedAt", ignore = true) // Güncellenir
-    @Mapping(target = "isActive", ignore = true) // Varsayılan true
+    // DTO'dan Entity'ye dönüşüm (Create & Update senaryoları için)
+    @Mapping(target = "id", ignore = true)         // Create sırasında id otomatik oluşturulur
+    @Mapping(target = "createdAt", ignore = true)  // Auditing mekanizması tarafından doldurulur
+    @Mapping(target = "updatedAt", ignore = true)  // Auditing mekanizması tarafından doldurulur
+    @Mapping(target = "isActive", ignore = true)   // Varsayılan değer entity'de tanımlı
+    @Mapping(target = "folderPath", ignore = true)
     Company toEntity(DtoCompanyIU dto);
 
     // Entity'den DTO'ya dönüşüm (Response için)

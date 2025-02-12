@@ -20,9 +20,6 @@ public class Document extends BaseEntity {
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "file_path")
-    private String filePath;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "type", length = 20)
     private DocumentFlow type;
