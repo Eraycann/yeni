@@ -39,8 +39,10 @@ public class CompanyService {
             Files.createDirectories(companyFolder);
             return companyFolder.toString();
         } catch (IOException e) {
-            throw new BaseException(new ErrorMessage(MessageType.GENERAL_EXCEPTION,
-                    "Failed to create folder for company: " + companyName));
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_CREATION_FAILED,
+                    "Folder creation error | Company: " + companyName + " | Details: " + e.getMessage()
+            ));
         }
     }
 
@@ -54,11 +56,13 @@ public class CompanyService {
             Files.move(oldPath, newPath);
             return newPath.toString();
         } catch (IOException e) {
-            throw new BaseException(new ErrorMessage(MessageType.GENERAL_EXCEPTION,
-                    "Failed to rename folder from " + oldFolderPath + " to " + newFolderName));
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_RENAME_FAILED,
+                    "Folder rename error | Old path: " + oldFolderPath
+                            + " | New name: " + newFolderName + " | Details: " + e.getMessage()
+            ));
         }
     }
-
     /**
      * Yeni firma kaydı oluşturur.
      * Aynı isimde aktif ya da pasif firma varsa hata fırlatılır.
@@ -69,13 +73,13 @@ public class CompanyService {
         String companyName = dto.getName();
 
         // Aktif firma kontrolü
-        if (companyRepository.findByNameAndIsActive(companyName, true).isPresent()) {
+        if (companyRepository.existsByNameAndIsActive(companyName, true)) {
             throw new BaseException(new ErrorMessage(
                     MessageType.ACTIVE_COMPANY_ALREADY_EXISTS,
                     "Active company with name '" + companyName + "' already exists."));
         }
         // Pasif firma kontrolü
-        if (companyRepository.findByNameAndIsActive(companyName, false).isPresent()) {
+        if (companyRepository.existsByNameAndIsActive(companyName, false)) {
             throw new BaseException(new ErrorMessage(
                     MessageType.INACTIVE_COMPANY_ALREADY_EXISTS,
                     "Inactive company with name '" + companyName + "' already exists."));
@@ -96,8 +100,11 @@ public class CompanyService {
 
     /**
      * Firma güncelleme işlemi:
-     * - Firma adında değişiklik varsa, duplicate kontrolü yapılır.
-     * - Klasör adı da güncellenir.
+     * - Eğer güncelleme isteğinde gönderilen firma adı mevcut şirketin adıyla aynıysa,
+     *   COMPANY_NAME_DUPLICATE hatası fırlatılır.
+     * - Farklı bir isim girildiyse, önce duplicate kontrolü yapılır:
+     *      - Eğer aynı isimde aktif veya pasif başka bir firma varsa, ilgili hata fırlatılır.
+     * - Ardından klasör adı rename edilip, şirketin adı güncellenir.
      */
     @Transactional
     public DtoCompany updateCompany(Long companyId, DtoCompanyIU dto) {
@@ -106,38 +113,40 @@ public class CompanyService {
                         MessageType.NO_RECORD_EXIST, "Company not found.")));
 
         String newCompanyName = dto.getName();
-        // Aynı isimde başka bir aktif firma varsa
-        companyRepository.findByNameAndIsActive(newCompanyName, true)
-                .filter(existing -> !existing.getId().equals(companyId))
-                .ifPresent(existing -> {
-                    throw new BaseException(new ErrorMessage(
-                            MessageType.ACTIVE_COMPANY_ALREADY_EXISTS,
-                            "Active company with name '" + newCompanyName + "' already exists."));
-                });
-        // Aynı isimde başka bir pasif firma varsa
-        companyRepository.findByNameAndIsActive(newCompanyName, false)
-                .filter(existing -> !existing.getId().equals(companyId))
-                .ifPresent(existing -> {
-                    throw new BaseException(new ErrorMessage(
-                            MessageType.INACTIVE_COMPANY_ALREADY_EXISTS,
-                            "Inactive company with name '" + newCompanyName + "' already exists."));
-                });
+
+        // Eğer güncelleme isteğinde firma adı, mevcut kayıtla aynıysa hata fırlatılır.
+        if (company.getName().equals(newCompanyName)) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.COMPANY_NAME_DUPLICATE,
+                    "Company with name '" + newCompanyName + "' already exists. Please provide a different name."));
+        }
+
+        // Duplicate kontrolü: aynı isimde aktif veya pasif firma var mı?
+        if (companyRepository.existsByNameAndIsActive(newCompanyName, true)) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.ACTIVE_COMPANY_ALREADY_EXISTS,
+                    "Active company with name '" + newCompanyName + "' already exists."));
+        }
+        if (companyRepository.existsByNameAndIsActive(newCompanyName, false)) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.INACTIVE_COMPANY_ALREADY_EXISTS,
+                    "Inactive company with name '" + newCompanyName + "' already exists."));
+        }
 
         try {
-            if (!company.getName().equals(newCompanyName)) {
-                String oldFolderPath = company.getFolderPath();
-                String newFolderPath = renameFolder(oldFolderPath, newCompanyName);
-                company.setFolderPath(newFolderPath);
-                company.setName(newCompanyName);
-            }
+            String oldFolderPath = company.getFolderPath();
+            String newFolderPath = renameFolder(oldFolderPath, newCompanyName);
+            company.setFolderPath(newFolderPath);
+            company.setName(newCompanyName);
             Company updatedCompany = companyRepository.save(company);
             return companyMapper.toDto(updatedCompany);
-        } catch (BaseException e) {
+        } catch (Exception e) {
             throw new BaseException(new ErrorMessage(
                     MessageType.FOLDER_RENAME_FAILED,
                     "Failed to rename folder from " + company.getFolderPath() + " to " + newCompanyName));
         }
     }
+
 
     /**
      * Firma silme (soft delete) işlemi:
@@ -208,29 +217,26 @@ public class CompanyService {
         }
     }
 
+
     /**
-     * Aktif firmaları getirir.
+     * Aktif firmaları veritabanından filtreleyerek getirir.
+     * Bu metot, sadece isActive = true olan kayıtları çeker.
      */
     @Transactional(readOnly = true)
     public List<DtoCompany> getActiveCompanies() {
-        List<Company> companies = companyRepository.findAll()
-                .stream()
-                .filter(Company::isActive)
-                .collect(Collectors.toList());
+        List<Company> companies = companyRepository.findByIsActive(true);
         return companies.stream()
                 .map(companyMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Pasif (inaktif) firmaları getirir.
+     * Pasif (inaktif) firmaları veritabanından filtreleyerek getirir.
+     * Bu metot, sadece isActive = false olan kayıtları çeker.
      */
     @Transactional(readOnly = true)
     public List<DtoCompany> getInactiveCompanies() {
-        List<Company> companies = companyRepository.findAll()
-                .stream()
-                .filter(company -> !company.isActive())
-                .collect(Collectors.toList());
+        List<Company> companies = companyRepository.findByIsActive(false);
         return companies.stream()
                 .map(companyMapper::toDto)
                 .collect(Collectors.toList());

@@ -13,10 +13,11 @@ public enum MessageType {
     INACTIVE_COMPANY_ALREADY_EXISTS("2001", "Aynı isimde pasif şirket zaten mevcut"),
     COMPANY_ALREADY_INACTIVE("2002", "Şirket zaten pasif durumda"),
     COMPANY_ALREADY_ACTIVE("2003", "Şirket zaten aktif durumda"),
+    COMPANY_NAME_DUPLICATE("2004", "Firma adı zaten mevcut. Lütfen farklı bir isim giriniz."),
 
     // Klasör İşlemleri (3000 serisi)
-    FOLDER_CREATION_FAILED("3000", "Klasör oluşturulamadı"),
-    FOLDER_RENAME_FAILED("3001", "Klasör yeniden adlandırılamadı"),
+    FOLDER_CREATION_FAILED("3000", "Sistem klasörü oluşturulamadı. Lütfen dizin izinlerini kontrol edin."),
+    FOLDER_RENAME_FAILED("3001", "Klasör adı değiştirilemedi. Hedef klasör kullanımda veya izin yetersiz."),
 
     // Auth & Token Hataları (8000 serisi)
     TOKEN_IS_EXPIRED("8000", "Tokenın süresi bitmiştir"),
