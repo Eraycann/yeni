@@ -81,11 +81,17 @@ public class CompanyService {
                     "Inactive company with name '" + companyName + "' already exists."));
         }
 
-        Company company = companyMapper.toEntity(dto);
-        String folderPath = createCompanyFolder(companyName);
-        company.setFolderPath(folderPath);
-        Company savedCompany = companyRepository.save(company);
-        return companyMapper.toDto(savedCompany);
+        try {
+            Company company = companyMapper.toEntity(dto);
+            String folderPath = createCompanyFolder(companyName);
+            company.setFolderPath(folderPath);
+            Company savedCompany = companyRepository.save(company);
+            return companyMapper.toDto(savedCompany);
+        } catch (BaseException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_CREATION_FAILED,
+                    "Failed to create folder for company: " + companyName));
+        }
     }
 
     /**
@@ -117,15 +123,20 @@ public class CompanyService {
                             "Inactive company with name '" + newCompanyName + "' already exists."));
                 });
 
-        // Eğer firma adında değişiklik varsa klasör yeniden adlandırılır
-        if (!company.getName().equals(newCompanyName)) {
-            String oldFolderPath = company.getFolderPath();
-            String newFolderPath = renameFolder(oldFolderPath, newCompanyName);
-            company.setFolderPath(newFolderPath);
-            company.setName(newCompanyName);
+        try {
+            if (!company.getName().equals(newCompanyName)) {
+                String oldFolderPath = company.getFolderPath();
+                String newFolderPath = renameFolder(oldFolderPath, newCompanyName);
+                company.setFolderPath(newFolderPath);
+                company.setName(newCompanyName);
+            }
+            Company updatedCompany = companyRepository.save(company);
+            return companyMapper.toDto(updatedCompany);
+        } catch (BaseException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_RENAME_FAILED,
+                    "Failed to rename folder from " + company.getFolderPath() + " to " + newCompanyName));
         }
-        Company updatedCompany = companyRepository.save(company);
-        return companyMapper.toDto(updatedCompany);
     }
 
     /**
@@ -139,20 +150,27 @@ public class CompanyService {
                 .orElseThrow(() -> new BaseException(new ErrorMessage(
                         MessageType.NO_RECORD_EXIST, "Company not found.")));
         if (!company.isActive()) {
-            throw new BaseException(new ErrorMessage(MessageType.GENERAL_EXCEPTION,
+            throw new BaseException(new ErrorMessage(
+                    MessageType.COMPANY_ALREADY_INACTIVE,
                     "Company is already inactive."));
         }
 
-        String oldFolderPath = company.getFolderPath();
-        Path oldPath = Paths.get(oldFolderPath);
-        String folderName = oldPath.getFileName().toString();
-        if (!folderName.startsWith("archived_")) {
-            String archivedFolderName = "archived_" + folderName;
-            String newFolderPath = renameFolder(oldFolderPath, archivedFolderName);
-            company.setFolderPath(newFolderPath);
+        try {
+            String oldFolderPath = company.getFolderPath();
+            Path oldPath = Paths.get(oldFolderPath);
+            String folderName = oldPath.getFileName().toString();
+            if (!folderName.startsWith("archived_")) {
+                String archivedFolderName = "archived_" + folderName;
+                String newFolderPath = renameFolder(oldFolderPath, archivedFolderName);
+                company.setFolderPath(newFolderPath);
+            }
+            company.setActive(false);
+            companyRepository.save(company);
+        } catch (BaseException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_RENAME_FAILED,
+                    "Failed to archive folder: " + company.getFolderPath()));
         }
-        company.setActive(false);
-        companyRepository.save(company);
     }
 
     /**
@@ -166,20 +184,28 @@ public class CompanyService {
                 .orElseThrow(() -> new BaseException(new ErrorMessage(
                         MessageType.NO_RECORD_EXIST, "Company not found.")));
         if (company.isActive()) {
-            throw new BaseException(new ErrorMessage(MessageType.GENERAL_EXCEPTION,
+            throw new BaseException(new ErrorMessage(
+                    MessageType.COMPANY_ALREADY_ACTIVE,
                     "Company is already active."));
         }
-        String oldFolderPath = company.getFolderPath();
-        Path oldPath = Paths.get(oldFolderPath);
-        String folderName = oldPath.getFileName().toString();
-        if (folderName.startsWith("archived_")) {
-            String restoredFolderName = folderName.substring("archived_".length());
-            String newFolderPath = renameFolder(oldFolderPath, restoredFolderName);
-            company.setFolderPath(newFolderPath);
+
+        try {
+            String oldFolderPath = company.getFolderPath();
+            Path oldPath = Paths.get(oldFolderPath);
+            String folderName = oldPath.getFileName().toString();
+            if (folderName.startsWith("archived_")) {
+                String restoredFolderName = folderName.substring("archived_".length());
+                String newFolderPath = renameFolder(oldFolderPath, restoredFolderName);
+                company.setFolderPath(newFolderPath);
+            }
+            company.setActive(true);
+            Company restoredCompany = companyRepository.save(company);
+            return companyMapper.toDto(restoredCompany);
+        } catch (BaseException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_RENAME_FAILED,
+                    "Failed to restore folder: " + company.getFolderPath()));
         }
-        company.setActive(true);
-        Company restoredCompany = companyRepository.save(company);
-        return companyMapper.toDto(restoredCompany);
     }
 
     /**
