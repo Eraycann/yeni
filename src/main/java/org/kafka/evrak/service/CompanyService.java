@@ -1,7 +1,5 @@
 package org.kafka.evrak.service;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.kafka.evrak.config.FileStorageConfig;
 import org.kafka.evrak.dto.request.DtoCompanyIU;
@@ -227,25 +225,22 @@ public class CompanyService {
 
     /**
      * Aktif firmaları veritabanından filtreleyerek getirir.
-     * Bu metot, sadece isActive = true olan kayıtları çeker.
+     * Bu metot, sadece isActive = true olan kayıtları çekip mapper'ın toDtoList metodu ile DTO'ya dönüştürür.
      */
     @Transactional(readOnly = true)
     public List<DtoCompany> getAllActiveCompanies() {
         List<Company> companies = companyRepository.findByIsActive(true);
-        return companies.stream()
-                .map(companyMapper::toDto)
-                .collect(Collectors.toList());
+        return companyMapper.toDtoList(companies);
     }
 
     /**
      * Pasif (inaktif) firmaları veritabanından filtreleyerek getirir.
-     * Bu metot, sadece isActive = false olan kayıtları çeker.
+     * Bu metot, sadece isActive = false olan kayıtları çekip mapper'ın toDtoList metodu ile DTO'ya dönüştürür.
      */
     @Transactional(readOnly = true)
     public List<DtoCompany> getAllInactiveCompanies() {
         List<Company> companies = companyRepository.findByIsActive(false);
-        return companies.stream()
-                .map(companyMapper::toDto)
-                .collect(Collectors.toList());
+        return companyMapper.toDtoList(companies);
     }
+
 }

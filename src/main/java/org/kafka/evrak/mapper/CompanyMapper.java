@@ -6,6 +6,8 @@ import org.kafka.evrak.entity.Company;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
+import java.util.List;
+
 @Mapper(componentModel = "spring")
 public interface CompanyMapper {
 
@@ -17,4 +19,6 @@ public interface CompanyMapper {
     Company toEntity(DtoCompanyIU dto);
 
     DtoCompany toDto(Company company);
+
+    List<DtoCompany> toDtoList(List<Company> companyList);
 }

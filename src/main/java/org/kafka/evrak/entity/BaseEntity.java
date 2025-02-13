@@ -30,7 +30,7 @@ public abstract class BaseEntity {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Builder.Default // ✅ Bu annotasyonu ekleyin
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 }

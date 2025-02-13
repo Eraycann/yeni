@@ -28,6 +28,9 @@ public class Document extends BaseEntity {
     @Column(name = "category", length = 5)
     private DocumentCategory category;
 
-    @Column(name = "description")
+    @Column(name = "description", length = 250)
     private String description;
+
+    @ManyToOne
+    private Company company;
 }

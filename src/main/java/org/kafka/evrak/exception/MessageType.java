@@ -18,6 +18,15 @@ public enum MessageType {
     // Klasör İşlemleri (3000 serisi)
     FOLDER_CREATION_FAILED("3000", "Sistem klasörü oluşturulamadı. Lütfen dizin izinlerini kontrol edin."),
     FOLDER_RENAME_FAILED("3001", "Klasör adı değiştirilemedi. Hedef klasör kullanımda veya izin yetersiz."),
+    COMPANY_FOLDER_NOT_FOUND("3002", "Company folder not found. Please add company first."),
+
+    // Belge İşlemleri (300 serisi)
+    DOCUMENT_ALREADY_ACTIVE("3005", "Document is already active."),
+    DOCUMENT_ALREADY_INACTIVE("3006", "Document is already inactive."),
+    DOCUMENT_ALREADY_EXISTS("3007", "Document with this name already exists in the company."),
+
+    // Kategori Hataları
+    DOCUMENT_CATEGORY_INVALID("3100", "Invalid document category provided. Must be GELEN or GIDEN."),
 
     // Auth & Token Hataları (8000 serisi)
     TOKEN_IS_EXPIRED("8000", "Tokenın süresi bitmiştir"),
