@@ -2,6 +2,8 @@ package org.kafka.evrak.repository;
 
 import org.kafka.evrak.entity.Document;
 import org.kafka.evrak.enums.DocumentCategory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,14 +19,15 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
             "AND (:name IS NULL OR LOWER(d.name) LIKE LOWER(CONCAT('%', :name, '%'))) " +
             "AND (:startDate IS NULL OR d.createdAt >= :startDate) " +
             "AND (:endDate IS NULL OR d.createdAt <= :endDate) " +
-            "AND (:category IS NULL OR d.category = :category) " +
-            "ORDER BY d.id DESC")
-    List<Document> filterDocuments(@Param("companyId") Long companyId,
+            "AND (:category IS NULL OR d.category = :category)")
+    Page<Document> filterDocuments(@Param("companyId") Long companyId,
                                    @Param("active") boolean active,
                                    @Param("name") String name,
                                    @Param("startDate") LocalDateTime startDate,
                                    @Param("endDate") LocalDateTime endDate,
-                                   @Param("category") DocumentCategory category);
+                                   @Param("category") DocumentCategory category,
+                                   Pageable pageable);
+
 
     boolean existsByCompanyIdAndNameAndIsActive(Long companyId, String name, boolean isActive);
 }

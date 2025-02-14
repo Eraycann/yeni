@@ -17,6 +17,10 @@ import org.kafka.evrak.repository.CompanyRepository;
 import org.kafka.evrak.repository.DocumentRepository;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -165,17 +169,18 @@ public class DocumentService {
      * Sonuçlar id'ye göre DESC sıralanır.
      */
     @Transactional(readOnly = true)
-    public List<DtoDocument> filterActiveDocuments(DtoDocumentFilter filter) {
-        return documentMapper.toDtoList(
-                documentRepository.filterDocuments(
-                        filter.getCompanyId(),
-                        true,
-                        filter.getName(),
-                        filter.getStartDate(),
-                        filter.getEndDate(),
-                        getDocumentCategory(filter.getCategory())
-                )
+    public Page<DtoDocument> filterActiveDocuments(DtoDocumentFilter filter, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Document> documentPage = documentRepository.filterDocuments(
+                filter.getCompanyId(),
+                true,
+                filter.getName(),
+                filter.getStartDate(),
+                filter.getEndDate(),
+                getDocumentCategory(filter.getCategory()),
+                pageable
         );
+        return documentPage.map(documentMapper::toDto);
     }
 
     /**
@@ -184,18 +189,20 @@ public class DocumentService {
      * Sonuçlar id'ye göre DESC sıralanır.
      */
     @Transactional(readOnly = true)
-    public List<DtoDocument> filterInactiveDocuments(DtoDocumentFilter filter) {
-        return documentMapper.toDtoList(
-                documentRepository.filterDocuments(
-                        filter.getCompanyId(),
-                        false,
-                        filter.getName(),
-                        filter.getStartDate(),
-                        filter.getEndDate(),
-                        getDocumentCategory(filter.getCategory())
-                )
+    public Page<DtoDocument> filterInactiveDocuments(DtoDocumentFilter filter, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Document> documentPage = documentRepository.filterDocuments(
+                filter.getCompanyId(),
+                false,
+                filter.getName(),
+                filter.getStartDate(),
+                filter.getEndDate(),
+                getDocumentCategory(filter.getCategory()),
+                pageable
         );
+        return documentPage.map(documentMapper::toDto);
     }
+
 
     /**
      * Belge ID'sine göre dosya (file) bilgisini Resource olarak döner.
