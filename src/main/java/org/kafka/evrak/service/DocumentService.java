@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,12 +35,6 @@ public class DocumentService {
     private final DocumentMapper documentMapper;
     private final FileStorageConfig fileStorageConfig;
 
-    /**
-     * Belge kaydı oluşturur.
-     * - Gelen belge bilgilerini (dto) ve dosyayı, ilgili companyId'ye göre firmanın klasörü altına kaydeder.
-     * - Eğer şirketin klasörü mevcut değilse, hata fırlatılır.
-     * - Aynı isimde aktif belge varsa duplicate kontrolü yapılır.
-     */
     @Transactional
     public DtoDocument saveDocument(DtoDocumentIU dto, MultipartFile file) {
         // İlgili şirketin varlığını kontrol et.
@@ -61,11 +56,9 @@ public class DocumentService {
                     MessageType.GENERAL_EXCEPTION, "File name is empty."));
         }
 
-        // Duplicate kontrolü: aynı şirket içinde aynı isimde aktif belge var mı?
-        if (documentRepository.existsByCompanyIdAndNameAndIsActive(company.getId(), originalFilename, true)) {
-            throw new BaseException(new ErrorMessage(
-                    MessageType.DOCUMENT_ALREADY_EXISTS, "Document with this name already exists in the company."));
-        }
+        // Benzersiz dosya adı oluştur (UUID + _ + original ad)
+        String uniqueNumber = UUID.randomUUID().toString().replace("-", "");
+        String storedFilename = uniqueNumber + "_" + originalFilename;
 
         // Dosyanın uzantısını alıp, DocumentFormat belirleyin.
         int dotIndex = originalFilename.lastIndexOf('.');
@@ -82,18 +75,18 @@ public class DocumentService {
                     MessageType.GENERAL_EXCEPTION, "Unsupported file format: " + ext));
         }
 
-        // Dosyayı şirket klasörü altına kopyalayın.
-        Path targetPath = companyFolder.resolve(originalFilename);
+        // Dosyayı şirket klasörü altına benzersiz isimle kopyalayın.
+        Path targetPath = companyFolder.resolve(storedFilename);
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new BaseException(new ErrorMessage(
-                    MessageType.FOLDER_CREATION_FAILED, "Failed to store file: " + originalFilename + " | " + e.getMessage()));
+                    MessageType.FOLDER_CREATION_FAILED, "Failed to store file: " + storedFilename + " | " + e.getMessage()));
         }
 
         // Document entity'sini oluşturun.
         Document document = documentMapper.toEntity(dto);
-        document.setName(originalFilename);
+        document.setName(storedFilename); // Benzersiz ismi kaydet
         document.setType(format);
         document.setCompany(company);
         Document savedDocument = documentRepository.save(document);
