@@ -10,6 +10,7 @@ import org.kafka.evrak.exception.ErrorMessage;
 import org.kafka.evrak.exception.MessageType;
 import org.kafka.evrak.mapper.CompanyMapper;
 import org.kafka.evrak.repository.CompanyRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,20 +19,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
-    private final FileStorageConfig fileStorageConfig; // Yeni eklenen konfigürasyon
+    private final FileStorageConfig fileStorageConfig;
 
-    // Base directory for company folders (Artık application.properties'tan alınıyor)
+    // Base directory for company folders (application.properties'tan alınıyor)
     private Path getUploadsDir() {
         return fileStorageConfig.getUploadsPath();
     }
-
 
     /**
      * Yardımcı metod: Belirtilen firma adına göre klasör oluşturur.
@@ -44,34 +44,15 @@ public class CompanyService {
         } catch (IOException e) {
             throw new BaseException(new ErrorMessage(
                     MessageType.FOLDER_CREATION_FAILED,
-                    "Folder creation error | Company: " + companyName + " | Details: " + e.getMessage()
-            ));
+                    "Folder creation error | Company: " + companyName + " | Details: " + e.getMessage()));
         }
     }
 
-    /**
-     * Yardımcı metod: Var olan klasörün adını yenisiyle değiştirir.
-     */
-    private String renameFolder(String oldFolderPath, String newFolderName) {
-        try {
-            Path oldPath = Paths.get(oldFolderPath);
-            Path newPath = oldPath.getParent().resolve(newFolderName);
-            Files.move(oldPath, newPath);
-            return newPath.toString();
-        } catch (IOException e) {
-            throw new BaseException(new ErrorMessage(
-                    MessageType.FOLDER_RENAME_FAILED,
-                    "Folder rename error | Old path: " + oldFolderPath
-                            + " | New name: " + newFolderName + " | Details: " + e.getMessage()
-            ));
-        }
-    }
     /**
      * Yeni firma kaydı oluşturur.
      * Aynı isimde aktif ya da pasif firma varsa hata fırlatılır.
      * Kayıt sonrası "uploads" klasörü altında firma adına göre alt klasör oluşturulur.
      */
-
     @Transactional
     public DtoCompany saveCompany(DtoCompanyIU dto) {
         String companyName = dto.getName();
@@ -89,26 +70,18 @@ public class CompanyService {
                     "Inactive company with name '" + companyName + "' already exists."));
         }
 
-        try {
-            Company company = companyMapper.toEntity(dto);
-            String folderPath = createCompanyFolder(companyName);
-            company.setFolderPath(folderPath);
-            Company savedCompany = companyRepository.save(company);
-            return companyMapper.toDto(savedCompany);
-        } catch (BaseException e) {
-            throw new BaseException(new ErrorMessage(
-                    MessageType.FOLDER_CREATION_FAILED,
-                    "Failed to create folder for company: " + companyName));
-        }
+        Company company = companyMapper.toEntity(dto);
+        String folderPath = createCompanyFolder(companyName);
+        company.setFolderPath(folderPath);
+        Company savedCompany = companyRepository.save(company);
+        return companyMapper.toDto(savedCompany);
     }
 
     /**
      * Firma güncelleme işlemi:
-     * - Eğer güncelleme isteğinde gönderilen firma adı mevcut şirketin adıyla aynıysa,
-     *   COMPANY_NAME_DUPLICATE hatası fırlatılır.
-     * - Farklı bir isim girildiyse, önce duplicate kontrolü yapılır:
-     *      - Eğer aynı isimde aktif veya pasif başka bir firma varsa, ilgili hata fırlatılır.
-     * - Ardından klasör adı rename edilip, şirketin adı güncellenir.
+     * - Eğer güncelleme isteğinde gönderilen firma adı, mevcut şirketin adıyla aynıysa hata fırlatılır.
+     * - Farklı bir isim girildiyse, önce duplicate kontrolü yapılır; eğer aynı isimde aktif veya pasif firma varsa hata fırlatılır.
+     * - Ardından klasör adı yeniden adlandırılır ve şirketin adı güncellenir.
      */
     @Transactional
     public DtoCompany updateCompany(Long companyId, DtoCompanyIU dto) {
@@ -137,20 +110,31 @@ public class CompanyService {
                     "Inactive company with name '" + newCompanyName + "' already exists."));
         }
 
-        try {
-            String oldFolderPath = company.getFolderPath();
-            String newFolderPath = renameFolder(oldFolderPath, newCompanyName);
-            company.setFolderPath(newFolderPath);
-            company.setName(newCompanyName);
-            Company updatedCompany = companyRepository.save(company);
-            return companyMapper.toDto(updatedCompany);
-        } catch (Exception e) {
-            throw new BaseException(new ErrorMessage(
-                    MessageType.FOLDER_RENAME_FAILED,
-                    "Failed to rename folder from " + company.getFolderPath() + " to " + newCompanyName));
-        }
+        // Klasör yeniden adlandırma
+        String oldFolderPath = company.getFolderPath();
+        String newFolderPath = renameFolder(oldFolderPath, newCompanyName);
+        company.setFolderPath(newFolderPath);
+        company.setName(newCompanyName);
+        Company updatedCompany = companyRepository.save(company);
+        return companyMapper.toDto(updatedCompany);
     }
 
+    /**
+     * Yardımcı metod: Var olan klasörün adını yenisiyle değiştirir.
+     */
+    private String renameFolder(String oldFolderPath, String newFolderName) {
+        try {
+            Path oldPath = Paths.get(oldFolderPath);
+            Path newPath = oldPath.getParent().resolve(newFolderName);
+            Files.move(oldPath, newPath);
+            return newPath.toString();
+        } catch (IOException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_RENAME_FAILED,
+                    "Folder rename error | Old path: " + oldFolderPath
+                            + " | New name: " + newFolderName + " | Details: " + e.getMessage()));
+        }
+    }
 
     /**
      * Firma silme (soft delete) işlemi:
@@ -168,23 +152,17 @@ public class CompanyService {
                     "Company is already inactive."));
         }
 
-        try {
-            String oldFolderPath = company.getFolderPath();
-            Path oldPath = Paths.get(oldFolderPath);
-            String folderName = oldPath.getFileName().toString();
-            if (!folderName.startsWith("archived_")) {
-                String archivedFolderName = "archived_" + folderName;
-                String newFolderPath = renameFolder(oldFolderPath, archivedFolderName);
-                company.setFolderPath(newFolderPath);
-            }
-            company.setActive(false);
-            Company savedCompany = companyRepository.save(company);
-            return savedCompany.getId();
-        } catch (BaseException e) {
-            throw new BaseException(new ErrorMessage(
-                    MessageType.FOLDER_RENAME_FAILED,
-                    "Failed to archive folder: " + company.getFolderPath()));
+        String oldFolderPath = company.getFolderPath();
+        Path oldPath = Paths.get(oldFolderPath);
+        String folderName = oldPath.getFileName().toString();
+        if (!folderName.startsWith("archived_")) {
+            String archivedFolderName = "archived_" + folderName;
+            String newFolderPath = renameFolder(oldFolderPath, archivedFolderName);
+            company.setFolderPath(newFolderPath);
         }
+        company.setActive(false);
+        Company savedCompany = companyRepository.save(company);
+        return savedCompany.getId();
     }
 
     /**
@@ -203,44 +181,58 @@ public class CompanyService {
                     "Company is already active."));
         }
 
-        try {
-            String oldFolderPath = company.getFolderPath();
-            Path oldPath = Paths.get(oldFolderPath);
-            String folderName = oldPath.getFileName().toString();
-            if (folderName.startsWith("archived_")) {
-                String restoredFolderName = folderName.substring("archived_".length());
-                String newFolderPath = renameFolder(oldFolderPath, restoredFolderName);
-                company.setFolderPath(newFolderPath);
-            }
-            company.setActive(true);
-            Company restoredCompany = companyRepository.save(company);
-            return restoredCompany.getId();
-        } catch (BaseException e) {
-            throw new BaseException(new ErrorMessage(
-                    MessageType.FOLDER_RENAME_FAILED,
-                    "Failed to restore folder: " + company.getFolderPath()));
+        String oldFolderPath = company.getFolderPath();
+        Path oldPath = Paths.get(oldFolderPath);
+        String folderName = oldPath.getFileName().toString();
+        if (folderName.startsWith("archived_")) {
+            String restoredFolderName = folderName.substring("archived_".length());
+            String newFolderPath = renameFolder(oldFolderPath, restoredFolderName);
+            company.setFolderPath(newFolderPath);
         }
+        company.setActive(true);
+        Company restoredCompany = companyRepository.save(company);
+        return restoredCompany.getId();
     }
 
-
     /**
-     * Aktif firmaları veritabanından filtreleyerek getirir.
-     * Bu metot, sadece isActive = true olan kayıtları çekip mapper'ın toDtoList metodu ile DTO'ya dönüştürür.
+     * Aktif firmaları veritabanından DESC sıralı olarak getirir.
      */
     @Transactional(readOnly = true)
     public List<DtoCompany> getAllActiveCompanies() {
-        List<Company> companies = companyRepository.findByIsActive(true);
+        List<Company> companies = companyRepository.findByIsActive(true,
+                Sort.by(Sort.Direction.DESC, "id"));
         return companyMapper.toDtoList(companies);
     }
 
     /**
-     * Pasif (inaktif) firmaları veritabanından filtreleyerek getirir.
-     * Bu metot, sadece isActive = false olan kayıtları çekip mapper'ın toDtoList metodu ile DTO'ya dönüştürür.
+     * Pasif (inaktif) firmaları veritabanından DESC sıralı olarak getirir.
      */
     @Transactional(readOnly = true)
     public List<DtoCompany> getAllInactiveCompanies() {
-        List<Company> companies = companyRepository.findByIsActive(false);
+        List<Company> companies = companyRepository.findByIsActive(false,
+                Sort.by(Sort.Direction.DESC, "id"));
         return companyMapper.toDtoList(companies);
     }
 
+    /**
+     * İsim'e göre aktif şirketi getirir.
+     */
+    @Transactional(readOnly = true)
+    public DtoCompany getActiveCompaniesByName(String name) {
+        Company company = companyRepository.findByNameAndIsActive(name, true)
+                .orElseThrow(() -> new BaseException(new ErrorMessage(
+                        MessageType.NO_RECORD_EXIST, "Active company with name '" + name + "' not found.")));
+        return companyMapper.toDto(company);
+    }
+
+    /**
+     * İsim'e göre aktif şirketi getirir.
+     */
+    @Transactional(readOnly = true)
+    public DtoCompany getInactiveCompaniesByName(String name) {
+        Company company = companyRepository.findByNameAndIsActive(name, false)
+                .orElseThrow(() -> new BaseException(new ErrorMessage(
+                        MessageType.NO_RECORD_EXIST, "Inactive company with name '" + name + "' not found.")));
+        return companyMapper.toDto(company);
+    }
 }

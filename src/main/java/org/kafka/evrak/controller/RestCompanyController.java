@@ -1,5 +1,6 @@
 package org.kafka.evrak.controller;
 
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.kafka.evrak.dto.request.DtoCompanyIU;
 import org.kafka.evrak.dto.response.DtoCompany;
@@ -43,5 +44,15 @@ public class RestCompanyController extends RestBaseController{
     @PutMapping("/deactivate/{id}")
     public RootEntity<Long> deactivateCompany(@PathVariable Long id) {
         return ok(companyService.deactivateCompany(id));
+    }
+
+    @PostMapping("/getActiveByName")
+    public RootEntity<DtoCompany> getActiveCompaniesByName(@RequestParam(required = true) @Size(max = 100) String name) {
+        return ok(companyService.getActiveCompaniesByName(name));
+    }
+
+    @PostMapping("/getInactiveByName")
+    public RootEntity<DtoCompany> getInactiveCompaniesByName(@RequestParam(required = true) @Size(max = 100) String name) {
+        return ok(companyService.getInactiveCompaniesByName(name));
     }
 }
