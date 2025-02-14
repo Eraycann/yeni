@@ -8,6 +8,7 @@ import org.kafka.evrak.dto.response.DtoDocument;
 import org.kafka.evrak.service.DocumentService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,7 +27,7 @@ public class RestDocumentController extends RestBaseController {
      * İstek, multipart/form-data formatında "document" (JSON kısmı: DtoDocumentIU)
      * ve "file" (MultipartFile) olarak gönderilmelidir.
      */
-    @PostMapping("/save")
+    @PostMapping(value = "/save", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public RootEntity<DtoDocument> saveDocument(
             @RequestPart("document") @Valid DtoDocumentIU documentIU,
             @RequestPart("file") MultipartFile file) {
