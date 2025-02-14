@@ -46,12 +46,12 @@ public class RestCompanyController extends RestBaseController{
         return ok(companyService.deactivateCompany(id));
     }
 
-    @PostMapping("/getActiveByName")
+    @GetMapping("/getActiveByName")
     public RootEntity<DtoCompany> getActiveCompaniesByName(@RequestParam(required = true) @Size(max = 100) String name) {
         return ok(companyService.getActiveCompaniesByName(name));
     }
 
-    @PostMapping("/getInactiveByName")
+    @GetMapping("/getInactiveByName")
     public RootEntity<DtoCompany> getInactiveCompaniesByName(@RequestParam(required = true) @Size(max = 100) String name) {
         return ok(companyService.getInactiveCompaniesByName(name));
     }
