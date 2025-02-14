@@ -10,6 +10,9 @@ import org.kafka.evrak.exception.ErrorMessage;
 import org.kafka.evrak.exception.MessageType;
 import org.kafka.evrak.mapper.CompanyMapper;
 import org.kafka.evrak.repository.CompanyRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -198,20 +201,20 @@ public class CompanyService {
      * Aktif firmaları veritabanından DESC sıralı olarak getirir.
      */
     @Transactional(readOnly = true)
-    public List<DtoCompany> getAllActiveCompanies() {
-        List<Company> companies = companyRepository.findByIsActive(true,
-                Sort.by(Sort.Direction.DESC, "id"));
-        return companyMapper.toDtoList(companies);
+    public Page<DtoCompany> getAllActiveCompanies(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Company> companyPage = companyRepository.findByIsActive(true, pageable);
+        return companyPage.map(companyMapper::toDto);
     }
 
     /**
      * Pasif (inaktif) firmaları veritabanından DESC sıralı olarak getirir.
      */
     @Transactional(readOnly = true)
-    public List<DtoCompany> getAllInactiveCompanies() {
-        List<Company> companies = companyRepository.findByIsActive(false,
-                Sort.by(Sort.Direction.DESC, "id"));
-        return companyMapper.toDtoList(companies);
+    public Page<DtoCompany> getAllInactiveCompanies(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Company> companyPage = companyRepository.findByIsActive(false, pageable);
+        return companyPage.map(companyMapper::toDto);
     }
 
     /**

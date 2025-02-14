@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.kafka.evrak.dto.request.DtoCompanyIU;
 import org.kafka.evrak.dto.response.DtoCompany;
 import org.kafka.evrak.service.CompanyService;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,13 +28,17 @@ public class RestCompanyController extends RestBaseController{
     }
 
     @GetMapping("/getAllActive")
-    public RootEntity<List<DtoCompany>> getAllActiveCompanies() {
-        return ok(companyService.getAllActiveCompanies());
+    public RootEntity<Page<DtoCompany>> getAllActiveCompanies(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ok(companyService.getAllActiveCompanies(page, size));
     }
 
     @GetMapping("/getAllInactive")
-    public RootEntity<List<DtoCompany>> getAllInactiveCompanies() {
-        return ok(companyService.getAllInactiveCompanies());
+    public RootEntity<Page<DtoCompany>> getAllInactiveCompanies(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ok(companyService.getAllInactiveCompanies(page, size));
     }
 
     @PutMapping("/activate/{id}")
