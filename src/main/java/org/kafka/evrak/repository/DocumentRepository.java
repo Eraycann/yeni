@@ -29,5 +29,5 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
                                    Pageable pageable);
 
 
-    boolean existsByCompanyIdAndNameAndIsActive(Long companyId, String name, boolean isActive);
+    boolean existsByCompanyIdAndIsActive(Long companyId, boolean isActive); // Yeni eklenen metod
 }

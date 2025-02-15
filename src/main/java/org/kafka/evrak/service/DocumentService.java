@@ -229,6 +229,100 @@ public class DocumentService {
         }
     }
 
+    @Transactional
+    public Long deleteDocumentPermanently(Long documentId) {
+        // Veritabanından belgeyi getir
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new BaseException(new ErrorMessage(
+                        MessageType.NO_RECORD_EXIST, "Document not found.")));
+
+        Company company = document.getCompany();
+
+        // İlk olarak, veritabanındaki isme göre dosya yolunu oluştur
+        Path filePath = Paths.get(company.getFolderPath()).resolve(document.getName());
+
+        // Dosya mevcut değilse, "archived_" eki ile de kontrol edelim
+        if (!Files.exists(filePath)) {
+            filePath = Paths.get(company.getFolderPath()).resolve("archived_" + document.getName());
+            if (!Files.exists(filePath)) {
+                throw new BaseException(new ErrorMessage(
+                        MessageType.NO_RECORD_EXIST, "Document file not found on file system."));
+            }
+        }
+
+        // Dosya sisteminden silme işlemi
+        try {
+            Files.delete(filePath);
+        } catch (IOException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.DOCUMENT_DELETION_FAILED, "Failed to delete document file: " + e.getMessage()));
+        }
+
+        // Belgeyi veritabanından kalıcı olarak sil
+        documentRepository.delete(document);
+
+        return documentId;
+    }
+
+    @Transactional
+    public int deleteAllActiveDocuments(Long companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new BaseException(new ErrorMessage(
+                        MessageType.NO_RECORD_EXIST, "Company not found for id: " + companyId)));
+
+        // Aktif doküman var mı kontrol et
+        if (!documentRepository.existsByCompanyIdAndIsActive(companyId, true)) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.NO_ACTIVE_DOCUMENTS_FOUND, "No active documents found for company: " + companyId));
+        }
+
+        List<Document> documents = documentRepository.findByCompanyIdAndIsActive(companyId, true);
+        deleteDocumentsAndFiles(company, documents);
+        return documents.size();
+    }
+
+    @Transactional
+    public int deleteAllInactiveDocuments(Long companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new BaseException(new ErrorMessage(
+                        MessageType.NO_RECORD_EXIST, "Company not found for id: " + companyId)));
+
+        // Pasif doküman var mı kontrol et
+        if (!documentRepository.existsByCompanyIdAndIsActive(companyId, false)) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.NO_INACTIVE_DOCUMENTS_FOUND, "No inactive documents found for company: " + companyId));
+        }
+
+        List<Document> documents = documentRepository.findByCompanyIdAndIsActive(companyId, false);
+        deleteDocumentsAndFiles(company, documents);
+        return documents.size();
+    }
+
+    private void deleteDocumentsAndFiles(Company company, List<Document> documents) {
+        Path companyFolder = Paths.get(company.getFolderPath());
+
+        for (Document doc : documents) {
+            Path filePath = companyFolder.resolve(doc.getName());
+
+            // Dosya var mı kontrol et
+            if (Files.exists(filePath)) {
+                try {
+                    Files.delete(filePath);
+                } catch (IOException e) {
+                    throw new BaseException(new ErrorMessage(
+                            MessageType.FILE_DELETE_FAILED, "Failed to delete file: " + doc.getName()));
+                }
+            } else {
+                // Dosya yoksa özel hata fırlat
+                throw new BaseException(new ErrorMessage(
+                        MessageType.FILE_NOT_FOUND, "File not found: " + doc.getName()));
+            }
+        }
+
+        documentRepository.deleteAll(documents);
+    }
+
+
     // Yardımcı metod: Gelen category string'ini DocumentCategory enum'ına dönüştürür.
 // Eğer geçerli (GELEN veya GIDEN) değilse hata fırlatır.
     private DocumentCategory getDocumentCategory(String categoryStr) {

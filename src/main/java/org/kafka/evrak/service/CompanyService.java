@@ -5,11 +5,13 @@ import org.kafka.evrak.config.FileStorageConfig;
 import org.kafka.evrak.dto.request.DtoCompanyIU;
 import org.kafka.evrak.dto.response.DtoCompany;
 import org.kafka.evrak.entity.Company;
+import org.kafka.evrak.entity.Document;
 import org.kafka.evrak.exception.BaseException;
 import org.kafka.evrak.exception.ErrorMessage;
 import org.kafka.evrak.exception.MessageType;
 import org.kafka.evrak.mapper.CompanyMapper;
 import org.kafka.evrak.repository.CompanyRepository;
+import org.kafka.evrak.repository.DocumentRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,9 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 
 @Service
@@ -30,6 +31,9 @@ public class CompanyService {
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
     private final FileStorageConfig fileStorageConfig;
+
+    // DocumentRepository'yi de enjekte ediyoruz.
+    private final DocumentRepository documentRepository;
 
     // Base directory for company folders (application.properties'tan alınıyor)
     private Path getUploadsDir() {
@@ -229,7 +233,7 @@ public class CompanyService {
     }
 
     /**
-     * İsim'e göre aktif şirketi getirir.
+     * İsim'e göre pasif şirketi getirir.
      */
     @Transactional(readOnly = true)
     public DtoCompany getInactiveCompaniesByName(String name) {
@@ -238,4 +242,74 @@ public class CompanyService {
                         MessageType.NO_RECORD_EXIST, "Inactive company with name '" + name + "' not found.")));
         return companyMapper.toDto(company);
     }
+
+    /**
+     * Şirketin içerisinde hiç evrak yoksa, firmayı kalıcı olarak siler.
+     * - Evrak varsa silme işlemi yapılmaz.
+     * - Şirketin dosya sistemi klasörü, "archived_" öneki olsun veya olmasın, silinir.
+     */
+    @Transactional
+    public Long deleteCompanyPermanently(Long companyId) {
+        // Şirketi getir
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new BaseException(new ErrorMessage(
+                        MessageType.NO_RECORD_EXIST, "Company not found.")));
+
+        // Şirkete ait aktif evrakları kontrol et
+        List<Document> activeDocs = documentRepository.findByCompanyIdAndIsActive(companyId, true);
+        if (!activeDocs.isEmpty()) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.COMPANY_CONTAINS_ACTIVE_DOCUMENTS,
+                    "Company contains active documents and cannot be deleted permanently."));
+        }
+
+        // Şirkete ait pasif evrakları kontrol et
+        List<Document> inactiveDocs = documentRepository.findByCompanyIdAndIsActive(companyId, false);
+        if (!inactiveDocs.isEmpty()) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.COMPANY_CONTAINS_INACTIVE_DOCUMENTS,
+                    "Company contains inactive documents and cannot be deleted permanently."));
+        }
+
+        // Şirketin dosya sistemindeki klasörünü silmek üzere yolunu belirle
+        Path folderPath = Paths.get(company.getFolderPath());
+        if (!Files.exists(folderPath)) {
+            // Eğer normal klasör bulunamazsa, "archived_" önekli klasörü kontrol et
+            Path parent = folderPath.getParent();
+            if (parent != null) {
+                folderPath = parent.resolve("archived_" + folderPath.getFileName().toString());
+            }
+            if (!Files.exists(folderPath)) {
+                throw new BaseException(new ErrorMessage(
+                        MessageType.COMPANY_FOLDER_NOT_FOUND, "Company folder not found in file system."));
+            }
+        }
+
+        // Klasörün boş olup olmadığını kontrol et
+        try (var entries = Files.list(folderPath)) {
+            if (entries.findFirst().isPresent()) {
+                throw new BaseException(new ErrorMessage(
+                        MessageType.COMPANY_FOLDER_NOT_EMPTY,
+                        "Company folder is not empty. Deletion aborted for security reasons."));
+            }
+        } catch (IOException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_RENAME_FAILED,
+                    "Failed to inspect company folder: " + e.getMessage()));
+        }
+
+        // Klasör boşsa, sil
+        try {
+            Files.delete(folderPath);
+        } catch (IOException e) {
+            throw new BaseException(new ErrorMessage(
+                    MessageType.FOLDER_RENAME_FAILED,
+                    "Failed to delete company folder: " + e.getMessage()));
+        }
+
+        // Şirketi veritabanından sil
+        companyRepository.delete(company);
+        return companyId;
+    }
+
 }

@@ -60,4 +60,13 @@ public class RestCompanyController extends RestBaseController{
     public RootEntity<DtoCompany> getInactiveCompaniesByName(@RequestParam(required = true) @Size(max = 100) String name) {
         return ok(companyService.getInactiveCompaniesByName(name));
     }
+
+    /**
+     * Şirketin içerisinde evrak yoksa, firmayı kalıcı olarak siler.
+     * Dosya sistemi kontrolü yapılarak, klasörün adı "archived_" önekli olsun veya olmasın, klasör boşsa silinir.
+     */
+    @DeleteMapping("/delete/{id}")
+    public RootEntity<Long> deleteCompanyPermanently(@PathVariable Long id) {
+        return ok(companyService.deleteCompanyPermanently(id));
+    }
 }
